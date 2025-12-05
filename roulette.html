@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抽選ルーレット (設定保存・演出強化版)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #111827; /* Dark Charcoal */
+            --surface-color: #1f2937; /* Dark Gray */
+            --accent-color: #d1d5db; /* Platinum Silver */
+            --accent-glow: rgba(209, 213, 219, 0.5);
+            --jackpot-color: #8b5cf6; /* Royal Purple */
+            --jackpot-glow: rgba(139, 92, 246, 0.7);
+            --text-color: #f1f5f9;
+        }
+
+        /* ページ全体のスタイル */
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle, #2c3e50, var(--bg-color));
+            margin: 0;
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .main-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #logo {
+            position: fixed;
+            right: 30px;
+            bottom: 30px;
+            width: 70px;
+            height: 70px;
+            cursor: pointer;
+            transition: transform 0.3s ease, filter 0.3s ease;
+            border-radius: 50%;
+            z-index: 2000;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+        }
+        #logo:hover {
+            transform: scale(1.1) rotate(-10deg);
+            filter: drop-shadow(0 0 10px var(--accent-glow));
+        }
+
+        #menuButton {
+            position: fixed;
+            left: 30px;
+            bottom: 30px;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #0ABAB5 0%, #08a09c 100%);
+            border: 2px solid #0ABAB5;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            color: #000;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        #menuButton:hover {
+            transform: scale(1.1) rotate(-10deg);
+            box-shadow: 0 0 20px rgba(10, 186, 181, 0.5);
+        }
+
+        /* Canvasのコンテナ */
+        .canvas-container {
+            position: relative;
+            width: 90vw;
+            height: 90vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #rouletteCanvas {
+            cursor: pointer;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #effectsCanvas {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #confettiCanvas {
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 101; /* モーダル(100)より上 */
+        }
+
+        /* ルーレットの針 */
+        .roulette-pin {
+            position: absolute;
+            top: 15px; /* 25px - 10px */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 36px solid var(--accent-color);
+            z-index: 10;
+            filter: drop-shadow(0 0 5px var(--accent-glow));
+        }
+        
+        /* 結果表示用モーダル */
+        #resultModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(17, 24, 39, 0.9);
+            justify-content: center; align-items: center; z-index: 100; flex-direction: column;
+        }
+
+        #resultText {
+            font-family: 'Playfair Display', serif;
+            font-size: 5vw; font-weight: bold; color: #fff;
+            text-shadow: 0 0 10px var(--accent-color), 0 0 20px var(--accent-color), 0 0 30px var(--accent-color);
+            animation: glow 1.5s ease-in-out infinite alternate;
+            white-space: pre-wrap; /* 改行を有効にする */
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        #resultText.jackpot-text {
+            color: #ffd700; /* Gold */
+            animation: jackpot-glow 1.5s ease-in-out infinite alternate;
+        }
+        
+        #closeButton {
+            margin-top: 20px; padding: 10px 25px; font-size: 18px;
+            border: 2px solid var(--accent-color); background: transparent;
+            color: var(--accent-color); border-radius: 5px; cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #closeButton:hover {
+            background: var(--accent-color); color: var(--bg-color);
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px var(--accent-color), 0 0 20px var(--accent-color); }
+            to { text-shadow: 0 0 20px var(--accent-glow), 0 0 30px var(--accent-glow); }
+        }
+
+        @keyframes jackpot-glow {
+            from { text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700, 0 0 30px #ff8c00; }
+            to { text-shadow: 0 0 20px #ffd700, 0 0 30px #ff8c00, 0 0 40px #ff8c00; }
+        }
+
+        /* 割合設定モーダル */
+        #settingsModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(17, 24, 39, 0.95);
+            justify-content: center; align-items: center; z-index: 200;
+        }
+        .settings-content {
+            background: var(--surface-color); padding: 30px; border-radius: 10px;
+            border: 1px solid var(--accent-color);
+            box-shadow: 0 0 20px var(--accent-glow);
+            width: 90%; max-width: 450px;
+            display: flex;
+            flex-direction: column;
+        }
+        .settings-list-container {
+            max-height: 40vh;
+            overflow-y: auto;
+            padding-right: 10px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .settings-list-container.show {
+            display: block;
+        }
+        .settings-item {
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .item-name {
+            width: 100%; padding: 8px; border-radius: 5px;
+            border: 1px solid var(--accent-color); background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .item-weight {
+            width: 60px; padding: 8px; border-radius: 5px;
+            border: 1px solid var(--accent-color); background-color: var(--bg-color);
+            color: var(--text-color); text-align: center;
+        }
+        .jackpot-label {
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; padding: 5px; border: 1px solid var(--surface-color);
+            border-radius: 5px;
+        }
+        .item-jackpot { display: none; }
+        .jackpot-label span { font-weight: bold; color: var(--surface-color); }
+        .item-jackpot:checked + span {
+            color: var(--jackpot-color);
+            text-shadow: 0 0 5px var(--jackpot-glow);
+        }
+        .delete-item-btn {
+            background: transparent; border: none; color: var(--accent-color);
+            font-size: 24px; cursor: pointer; padding: 0 5px; line-height: 1;
+        }
+        .toggle-details-button {
+            width: 100%; padding: 10px; margin-bottom: 10px;
+            background: transparent; border: 2px solid var(--accent-color);
+            color: var(--accent-color); cursor: pointer; border-radius: 5px;
+            transition: all 0.2s ease;
+            font-weight: bold;
+        }
+        .toggle-details-button:hover {
+            background: var(--accent-color); color: var(--bg-color);
+        }
+        .add-item-button {
+            width: 100%; padding: 10px; margin-top: 10px;
+            background: transparent; border: 2px dashed var(--accent-color);
+            color: var(--accent-color); cursor: pointer; border-radius: 5px;
+            transition: all 0.2s ease;
+            display: none;
+        }
+        .add-item-button.show {
+            display: block;
+        }
+        .add-item-button:hover {
+            background: var(--accent-color); color: var(--bg-color);
+        }
+        .settings-buttons {
+            display: flex; justify-content: flex-end; margin-top: 20px;
+        }
+        .settings-buttons button {
+            padding: 10px 20px; font-size: 16px; cursor: pointer;
+            border-radius: 5px; border: 2px solid var(--accent-color);
+            background: transparent; color: var(--accent-color);
+            transition: all 0.2s ease;
+        }
+        .settings-buttons button:hover {
+            background: var(--accent-color); color: var(--bg-color);
+        }
+        .settings-management {
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--accent-color);
+            margin-bottom: 20px;
+        }
+        .settings-management select {
+             width: 100%; padding: 8px; border-radius: 5px;
+            border: 1px solid var(--accent-color); background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="canvas-container">
+            <div class="roulette-pin"></div>
+            <canvas id="rouletteCanvas"></canvas>
+            <canvas id="effectsCanvas"></canvas>
+        </div>
+        <img id="logo" src="https://pbs.twimg.com/profile_images/1951189124922351617/yu7hAYrv_400x400.jpg" alt="Logo">
+        <button id="menuButton" title="初期画面に戻る">☰</button>
+    </div>
+
+    <canvas id="confettiCanvas"></canvas>
+
+    <div id="resultModal">
+        <p id="resultText"></p>
+        <button id="closeButton">CLOSE</button>
+    </div>
+
+    <div id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-management">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <select id="settingsDropdown" style="flex:1;"></select>
+                    <input type="text" id="settingsNameInput" placeholder="設定名" style="flex:2; min-width:100px; border-radius:5px; border:1px solid var(--accent-color); padding:8px; background:var(--bg-color); color:var(--text-color);">
+                    <button id="deleteSettingButton" title="この設定を削除" style="background:transparent; border:1px solid var(--accent-color); color:var(--accent-color); border-radius:5px; padding:8px; cursor:pointer;">🗑️</button>
+                </div>
+            </div>
+            <button id="toggleDetailsButton" class="toggle-details-button">▼ 詳細</button>
+            <div class="settings-list-container">
+                <div id="settings-list"></div>
+            </div>
+            <button id="addItemButton" class="add-item-button">+ 項目を追加</button>
+            <div class="settings-buttons">
+                <button id="saveSettingsButton">保存</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // ===============================================
+        // --- 設定項目 ---
+        let items = ["項目1", "項目2", "項目3", "項目4"];
+        let weights = [2, 5, 10, 20];
+        let jackpotItems = ["項目1"];
+        const sliceColors = [
+            "#8e44ad", "#2980b9", "#27ae60", "#16a085",
+            "#f39c12", "#d35400", "#c0392b", "#34495e",
+            "#9b59b6", "#3498db", "#2ecc71", "#1abc9c",
+            "#f1c40f", "#e67e22", "#e74c3c", "#95a5a6"
+        ];
+        // ===============================================
+
+    // --- DOM要素の取得 ---
+    const rouletteCanvas = document.getElementById('rouletteCanvas');
+    const rCtx = rouletteCanvas.getContext('2d');
+    const effectsCanvas = document.getElementById('effectsCanvas');
+    const eCtx = effectsCanvas.getContext('2d');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const cCtx = confettiCanvas.getContext('2d');
+    const resultModal = document.getElementById('resultModal');
+    const resultText = document.getElementById('resultText');
+    const closeButton = document.getElementById('closeButton');
+    const logo = document.getElementById('logo');
+    const menuButton = document.getElementById('menuButton');
+    const settingsModal = document.getElementById('settingsModal');
+    const settingsList = document.getElementById('settings-list');
+    const saveSettingsButton = document.getElementById('saveSettingsButton');
+    const addItemButton = document.getElementById('addItemButton');
+    const settingsDropdown = document.getElementById('settingsDropdown');
+    const settingsNameInput = document.getElementById('settingsNameInput');
+    const deleteSettingButton = document.getElementById('deleteSettingButton');
+    const toggleDetailsButton = document.getElementById('toggleDetailsButton');
+    const settingsListContainer = document.querySelector('.settings-list-container');
+
+        // メニューに戻る
+        function backToMenu() {
+            window.location.href = 'VamosChallenge.html';
+        }
+        // 設定削除処理
+        deleteSettingButton.addEventListener('click', () => {
+            const name = settingsDropdown.value;
+            if (!name) return;
+            if (!confirm(`「${name}」を削除しますか？`)) return;
+            const savedSettings = JSON.parse(localStorage.getItem('rouletteSettings')) || {};
+            delete savedSettings[name];
+            localStorage.setItem('rouletteSettings', JSON.stringify(savedSettings));
+            populateSettingsDropdown();
+            loadSettingIntoEditor();
+        });
+
+        // 詳細表示トグル
+        toggleDetailsButton.addEventListener('click', () => {
+            settingsListContainer.classList.toggle('show');
+            addItemButton.classList.toggle('show');
+            if (settingsListContainer.classList.contains('show')) {
+                toggleDetailsButton.textContent = '▲ 詳細を閉じる';
+            } else {
+                toggleDetailsButton.textContent = '▼ 詳細';
+            }
+        });
+
+    // --- 変数定義 ---
+    let rCenterX, rCenterY, eCenterX, eCenterY, radius;
+    let slices = [];
+    let currentAngle = 0, isSpinning = false, isAnimating = false;
+        let spinStartTime = 0, spinTimeTotal = 0, startAngle = 0;
+        let winningIndex = -1;
+        let confetti = [];
+        let audioContext = null;
+        let lastTickIndex = -1; // 最後に音を鳴らしたセクター
+
+        // --- 割合設定メニュー関連 ---
+        function openSettings() {
+            populateSettingsDropdown();
+            loadSettingIntoEditor();
+            settingsModal.style.display = 'flex';
+        }
+
+        function closeSettings() {
+            settingsModal.style.display = 'none';
+        }
+
+        function getSettingsFromUI() {
+            const newItems = [];
+            const newWeights = [];
+            const newJackpotItems = [];
+            const itemElements = settingsList.querySelectorAll('.settings-item');
+            itemElements.forEach(itemEl => {
+                const name = itemEl.querySelector('.item-name').value.trim();
+                if (name) {
+                    newItems.push(name);
+                    const weight = parseInt(itemEl.querySelector('.item-weight').value, 10);
+                    newWeights.push(isNaN(weight) || weight < 0 ? 1 : weight);
+                    if (itemEl.querySelector('.item-jackpot').checked) {
+                        newJackpotItems.push(name);
+                    }
+                }
+            });
+            return { items: newItems, weights: newWeights, jackpotItems: newJackpotItems };
+        }
+
+        function applySettings(settings) {
+            items = settings.items;
+            weights = settings.weights;
+            jackpotItems = settings.jackpotItems;
+            calculateSlices();
+            drawRoulette(currentAngle);
+        }
+
+        function populateSettingsDropdown() {
+            const savedSettings = JSON.parse(localStorage.getItem('rouletteSettings')) || {};
+            const currentSelection = settingsDropdown.value;
+            settingsDropdown.innerHTML = '';
+            Object.keys(savedSettings).forEach(settingName => {
+                const option = document.createElement('option');
+                option.value = settingName;
+                option.textContent = settingName;
+                settingsDropdown.appendChild(option);
+            });
+            if (settingsDropdown.options.length === 0) {
+                const option = document.createElement('option');
+                option.value = '設定';
+                option.textContent = '設定';
+                settingsDropdown.appendChild(option);
+            }
+            settingsDropdown.value = currentSelection || settingsDropdown.options[0].value;
+            // テキストボックスにも反映
+            settingsNameInput.value = settingsDropdown.value;
+        }
+
+        function saveCurrentSetting() {
+            const name = settingsNameInput.value.trim() || settingsDropdown.value;
+            if (!name) return;
+
+            const savedSettings = JSON.parse(localStorage.getItem('rouletteSettings')) || {};
+            const currentSettings = getSettingsFromUI();
+
+            if (currentSettings.items.length < 2) {
+                alert("項目は最低2つ必要です。");
+                return;
+            }
+
+            savedSettings[name] = currentSettings;
+            localStorage.setItem('rouletteSettings', JSON.stringify(savedSettings));
+
+            populateSettingsDropdown();
+            settingsDropdown.value = name;
+            settingsNameInput.value = name;
+            applySettings(currentSettings);
+            closeSettings();
+        }
+        
+        function loadSettingIntoEditor() {
+            const name = settingsDropdown.value;
+            const savedSettings = JSON.parse(localStorage.getItem('rouletteSettings')) || {};
+            const settingsToLoad = savedSettings[name];
+
+            if (settingsToLoad) {
+                settingsList.innerHTML = '';
+                settingsToLoad.items.forEach((item, index) => {
+                    const itemHtml = `
+                        <div class="settings-item">
+                            <input type="text" class="item-name" value="${item}" placeholder="項目名">
+                            <input type="number" class="item-weight" value="${settingsToLoad.weights[index]}" min="0" title="割合（重み）">
+                            <label class="jackpot-label">
+                                <input type="checkbox" class="item-jackpot" ${settingsToLoad.jackpotItems.includes(item) ? 'checked' : ''}>
+                                <span>JP</span>
+                            </label>
+                            <button class="delete-item-btn">&times;</button>
+                        </div>
+                    `;
+                    settingsList.insertAdjacentHTML('beforeend', itemHtml);
+                });
+            }
+        }
+
+        logo.addEventListener('click', openSettings);
+        menuButton.addEventListener('click', backToMenu);
+        saveSettingsButton.addEventListener('click', saveCurrentSetting);
+        settingsDropdown.addEventListener('change', () => {
+            loadSettingIntoEditor();
+            settingsNameInput.value = settingsDropdown.value;
+        });
+        
+        settingsList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-item-btn')) {
+                e.target.parentElement.remove();
+            }
+        });
+
+        addItemButton.addEventListener('click', () => {
+            const newItemHtml = `
+                <div class="settings-item">
+                    <input type="text" class="item-name" value="新規項目" placeholder="項目名">
+                    <input type="number" class="item-weight" value="1" min="0" title="割合（重み）">
+                    <label class="jackpot-label">
+                        <input type="checkbox" class="item-jackpot">
+                        <span>JP</span>
+                    </label>
+                    <button class="delete-item-btn">&times;</button>
+                </div>
+            `;
+            settingsList.insertAdjacentHTML('beforeend', newItemHtml);
+        });
+        
+        // --- 描画関連 ---
+        function calculateSlices() {
+            const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+            if (totalWeight === 0) {
+                let currentAngle = 0;
+                const sliceAngle = (Math.PI * 2) / items.length;
+                 slices = items.map((item) => {
+                    const startAngle = currentAngle;
+                    currentAngle += sliceAngle;
+                    const endAngle = currentAngle;
+                    return { item, startAngle, endAngle, sliceAngle };
+                });
+                return;
+            }
+            let currentAngle = 0;
+            slices = items.map((item, index) => {
+                const sliceAngle = (weights[index] / totalWeight) * (Math.PI * 2);
+                const startAngle = currentAngle;
+                currentAngle += sliceAngle;
+                const endAngle = currentAngle;
+                return { item, startAngle, endAngle, sliceAngle };
+            });
+        }
+
+        function drawRoulette(rotateAngle) {
+            rCtx.clearRect(0, 0, rouletteCanvas.width, rouletteCanvas.height);
+            rCtx.beginPath();
+            rCtx.strokeStyle = 'rgba(209, 213, 219, 0.2)';
+            rCtx.lineWidth = 1;
+            rCtx.arc(rCenterX, rCenterY, radius + 10, 0, Math.PI * 2);
+            rCtx.stroke();
+
+            rCtx.save();
+            rCtx.translate(rCenterX, rCenterY);
+            rCtx.rotate(rotateAngle);
+
+            slices.forEach(({ item, startAngle, endAngle, sliceAngle }, index) => {
+                rCtx.beginPath();
+                rCtx.moveTo(0, 0);
+                rCtx.arc(0, 0, radius, startAngle, endAngle);
+                rCtx.closePath();
+                rCtx.fillStyle = sliceColors[index % sliceColors.length];
+                rCtx.fill();
+
+                rCtx.save();
+                rCtx.rotate(startAngle + sliceAngle / 2);
+                rCtx.textAlign = "right";
+                rCtx.textBaseline = "middle";
+                // 項目の弦長（扇形の幅）を計算
+                let arcWidth = 2 * radius * Math.sin(sliceAngle / 2) - 16; // 余白を少し引く
+                let baseFontSize = Math.max(16, Math.floor(radius / 15));
+                let currentFontSize = jackpotItems.includes(item) ? baseFontSize + 2 : baseFontSize;
+                rCtx.font = `bold ${currentFontSize}px 'Roboto', sans-serif`;
+                let textWidth = rCtx.measureText(item).width;
+                while (textWidth > arcWidth && currentFontSize > 8) {
+                    currentFontSize--;
+                    rCtx.font = `bold ${currentFontSize}px 'Roboto', sans-serif`;
+                    textWidth = rCtx.measureText(item).width;
+                }
+                // 黒アウトライン
+                rCtx.lineWidth = 2;
+                rCtx.strokeStyle = '#111';
+                rCtx.strokeText(item, radius - 20, 0);
+                // 本体文字
+                if (jackpotItems.includes(item)) {
+                    rCtx.fillStyle = '#FFFFFF';
+                    rCtx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+                    rCtx.shadowBlur = 10;
+                } else {
+                    rCtx.fillStyle = '#FFFFFF';
+                    rCtx.shadowBlur = 0;
+                }
+                rCtx.fillText(item, radius - 20, 0);
+                rCtx.shadowBlur = 0;
+                rCtx.restore();
+            });
+
+            rCtx.strokeStyle = '#111827';
+            rCtx.lineWidth = 2;
+            slices.forEach(({ startAngle }) => {
+                rCtx.beginPath();
+                rCtx.moveTo(0, 0);
+                rCtx.lineTo(radius * Math.cos(startAngle), radius * Math.sin(startAngle));
+                rCtx.stroke();
+            });
+
+            rCtx.restore();
+            rCtx.beginPath();
+            rCtx.fillStyle = '#111827';
+            rCtx.arc(rCenterX, rCenterY, Math.max(30, radius * 0.09), 0, Math.PI * 2);
+            rCtx.fill();
+            rCtx.beginPath();
+            rCtx.strokeStyle = '#d1d5db';
+            rCtx.lineWidth = 1;
+            rCtx.arc(rCenterX, rCenterY, Math.max(25, radius * 0.075), 0, Math.PI * 2);
+            rCtx.stroke();
+        }
+
+        // --- 音声関連 ---
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTickSound() {
+            initAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // 短いクリック音を生成
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.03);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.03);
+        }
+
+        function getCurrentSectorIndex(angle) {
+            // 正規化された角度（0〜2π）
+            const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            // 針の位置（上）から見てどのセクターか
+            const targetAngle = (1.5 * Math.PI - normalizedAngle + Math.PI * 2) % (Math.PI * 2);
+            
+            for (let i = 0; i < slices.length; i++) {
+                if (targetAngle >= slices[i].startAngle && targetAngle < slices[i].endAngle) {
+                    return i;
+                }
+            }
+            return slices.length - 1;
+        }
+
+        // --- エフェクト関連 ---
+        function createConfetti() {
+            confetti = [];
+            for (let i = 0; i < 150; i++) {
+                confetti.push({
+                    x: Math.random() * confettiCanvas.width,
+                    y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+                    w: Math.random() * 10 + 5, h: Math.random() * 10 + 5,
+                    vx: Math.random() * 4 - 2, vy: Math.random() * 5 + 2,
+                    angle: Math.random() * Math.PI * 2,
+                    color: `hsl(${Math.random() * 360}, 100%, 75%)`
+                });
+            }
+        }
+        function updateAndDrawEffects() {
+            eCtx.clearRect(0, 0, effectsCanvas.width, effectsCanvas.height);
+            cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            
+            if (isSpinning) {
+                const pulse = Math.sin(Date.now() / 150) * 0.3 + 0.4;
+                const gradient = eCtx.createRadialGradient(eCenterX, eCenterY, radius, eCenterX, eCenterY, radius + 30);
+                gradient.addColorStop(0, 'rgba(209, 213, 219, 0)');
+                gradient.addColorStop(0.7, `rgba(209, 213, 219, ${pulse})`);
+                gradient.addColorStop(1, 'rgba(209, 213, 219, 0)');
+                
+                eCtx.fillStyle = gradient;
+                eCtx.beginPath();
+                eCtx.arc(eCenterX, eCenterY, radius + 30, 0, Math.PI * 2);
+                eCtx.fill();
+            }
+
+            confetti.forEach((c, i) => {
+                c.x += c.vx;
+                c.y += c.vy;
+                c.angle += 0.1;
+                if (c.y > confettiCanvas.height) confetti.splice(i, 1);
+                cCtx.save();
+                cCtx.translate(c.x, c.y);
+                cCtx.rotate(c.angle);
+                cCtx.fillStyle = c.color;
+                cCtx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+                cCtx.restore();
+            });
+        }
+
+        // --- ウェイトに基づいた当選者決定 ---
+        function getWeightedWinner() {
+            const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+            if (totalWeight === 0) return Math.floor(Math.random() * items.length);
+            let random = Math.random() * totalWeight;
+            for (let i = 0; i < items.length; i++) {
+                if ((random -= weights[i]) <= 0) return i;
+            }
+            return items.length - 1;
+        }
+
+        // --- アニメーションループ ---
+        const easeOut = (t) => 1 - Math.pow(1 - t, 4);
+        function mainLoop() {
+            if (isSpinning) {
+                const timeElapsed = Date.now() - spinStartTime;
+                const progress = Math.min(timeElapsed / spinTimeTotal, 1);
+                const easedProgress = easeOut(progress);
+                const newAngle = startAngle + (currentAngle - startAngle) * easedProgress;
+                
+                // セクター切り替わりを検出して音を鳴らす
+                const currentSectorIndex = getCurrentSectorIndex(newAngle);
+                if (currentSectorIndex !== lastTickIndex) {
+                    playTickSound();
+                    lastTickIndex = currentSectorIndex;
+                }
+                
+                drawRoulette(newAngle);
+                
+                if (progress >= 1) {
+                    isSpinning = false;
+                    
+                    const winningItem = items[winningIndex];
+                    createConfetti();
+                    
+                    setTimeout(() => {
+                        resultText.classList.remove('jackpot-text');
+                        if (jackpotItems.includes(winningItem)) {
+                            resultText.textContent = `JACKPOT\n${winningItem}！`;
+                            resultText.classList.add('jackpot-text');
+                        } else {
+                            resultText.textContent = `VICTORY\n${winningItem}`;
+                        }
+                        resultModal.style.display = 'flex';
+                    }, 300);
+                }
+            }
+            updateAndDrawEffects();
+            if (isSpinning || confetti.length > 0) {
+                requestAnimationFrame(mainLoop);
+            } else {
+                isAnimating = false;
+            }
+        }
+        
+        function startSpin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            lastTickIndex = -1; // リセット
+
+            winningIndex = getWeightedWinner();
+            const winner = slices[winningIndex];
+            // 当選項目の範囲内でランダムな角度を選ぶ
+            const randomInSlice = winner.startAngle + Math.random() * (winner.endAngle - winner.startAngle);
+            // 針（上方向）がそのランダム角度に来るように回転させる
+            const targetRotation = (1.5 * Math.PI) - randomInSlice;
+
+            startAngle = currentAngle % (Math.PI * 2);
+            const rotations = (Math.floor(Math.random() * 5) + 8) * Math.PI * 2;
+            currentAngle = rotations + targetRotation;
+            spinStartTime = Date.now(); spinTimeTotal = 7000;
+            if (!isAnimating) { isAnimating = true; mainLoop(); }
+        }
+
+        // --- イベントリスナー ---
+        rouletteCanvas.addEventListener('click', startSpin);
+        rouletteCanvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startSpin();
+        }, { passive: false });
+        
+        closeButton.addEventListener('click', () => {
+            resultModal.style.display = 'none'; confetti = [];
+        });
+
+        function resizeHandler() {
+            // ルーレットを画面いっぱいに
+            const container = document.querySelector('.canvas-container');
+            const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+            container.style.width = size + 'px';
+            container.style.height = size + 'px';
+            rouletteCanvas.width = size;
+            rouletteCanvas.height = size;
+            effectsCanvas.width = size;
+            effectsCanvas.height = size;
+            rCenterX = rouletteCanvas.width / 2;
+            rCenterY = rouletteCanvas.height / 2;
+            eCenterX = effectsCanvas.width / 2;
+            eCenterY = effectsCanvas.height / 2;
+            radius = rouletteCanvas.width / 2 - size * 0.04;
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+            calculateSlices();
+            drawRoulette(currentAngle);
+        }
+        window.addEventListener('resize', resizeHandler);
+
+        // --- 初期化 ---
+        function initialize() {
+            // VamosChallenge.htmlから参加者情報を読み込む
+            const savedPlayers = JSON.parse(localStorage.getItem('vamosPlayers')) || [];
+            
+            // 参加者情報から「参加者ルーレット」の項目を自動更新
+            if (savedPlayers.length > 0) {
+                const participantNames = savedPlayers.map(p => p.name);
+                const savedSettings = JSON.parse(localStorage.getItem('rouletteSettings')) || {};
+                
+                // 参加者ルーレットを更新
+                savedSettings['参加者ルーレット'] = {
+                    items: participantNames,
+                    weights: Array(participantNames.length).fill(1),
+                    jackpotItems: []
+                };
+                
+                localStorage.setItem('rouletteSettings', JSON.stringify(savedSettings));
+            }
+            
+            const savedSettings = JSON.parse(localStorage.getItem('rouletteSettings')) || {};
+            const settingNames = Object.keys(savedSettings);
+            populateSettingsDropdown();
+            if (settingNames.length === 0) {
+                // 設定が1つも無い場合は設定画面を開く
+                openSettings();
+            } else {
+                loadSettingIntoEditor();
+                applySettings(getSettingsFromUI());
+            }
+        }
+
+    resizeHandler();
+    initialize();
+    </script>
+</body>
+</html>
+
