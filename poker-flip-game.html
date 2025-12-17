@@ -635,7 +635,7 @@
 
         // 初期化
         function init() {
-            // VamosChallenge.htmlから参加者情報を読み込む
+            // index.htmlから参加者情報を読み込む
             const savedPlayers = JSON.parse(localStorage.getItem('vamosPlayers')) || [];
             const savedPlayerCount = localStorage.getItem('playerCount');
             
@@ -695,7 +695,7 @@
 
         // メニューに戻る
         function backToMenu() {
-            window.location.href = 'VamosChallenge.html';
+            window.location.href = 'index.html';
         }
 
         // 設定画面に戻る
@@ -1475,4 +1475,5 @@
         init();
     </script>
 </body>
+
 </html>
