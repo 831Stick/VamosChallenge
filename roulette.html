@@ -361,7 +361,7 @@
 
         // メニューに戻る
         function backToMenu() {
-            window.location.href = 'VamosChallenge.html';
+            window.location.href = 'index.html';
         }
         // 設定削除処理
         deleteSettingButton.addEventListener('click', () => {
@@ -822,7 +822,7 @@
 
         // --- 初期化 ---
         function initialize() {
-            // VamosChallenge.htmlから参加者情報を読み込む
+            // index.htmlから参加者情報を読み込む
             const savedPlayers = JSON.parse(localStorage.getItem('vamosPlayers')) || [];
             
             // 参加者情報から「参加者ルーレット」の項目を自動更新
